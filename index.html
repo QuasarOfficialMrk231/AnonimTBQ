@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Анонимный браузер через KProxy</title>
+    <title>Anonim Browser</title>
     <style>
         body { margin: 0; font-family: Arial, sans-serif; }
         #browser-container { display: flex; flex-direction: column; height: 100vh; }
@@ -17,13 +17,13 @@
 <body>
     <div id="browser-container">
         <div id="url-bar">
-            <input type="text" id="url-input" placeholder="Введите URL..." />
-            <button id="go-button">Перейти</button>
+            <input type="text" id="url-input" placeholder="Enter URL..." />
+            <button id="go-button">Go</button>
         </div>
         <iframe id="browser-frame" 
                 sandbox="allow-forms allow-scripts" 
                 referrerpolicy="no-referrer"
-                title="Анонимный браузер"></iframe>
+                title="Anonim Browser"></iframe>
         <div id="timer">Время на сайте: 0 сек.</div>
     </div>
 
