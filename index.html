@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anonim Browser</title>
+    <title>Анонимный браузер через Whoer Proxy</title>
     <style>
         body { margin: 0; font-family: Arial, sans-serif; }
         #browser-container { display: flex; flex-direction: column; height: 100vh; }
@@ -17,13 +17,13 @@
 <body>
     <div id="browser-container">
         <div id="url-bar">
-            <input type="text" id="url-input" placeholder="Enter URL..." />
-            <button id="go-button">Go</button>
+            <input type="text" id="url-input" placeholder="Введите URL..." />
+            <button id="go-button">Перейти</button>
         </div>
         <iframe id="browser-frame" 
                 sandbox="allow-forms allow-scripts" 
                 referrerpolicy="no-referrer"
-                title="Anonim Browser"></iframe>
+                title="Анонимный браузер"></iframe>
         <div id="timer">Время на сайте: 0 сек.</div>
     </div>
 
@@ -36,7 +36,7 @@
         let startTime = 0;
         let timerInterval = null;
 
-        // Функция для перехода на сайт через KProxy
+        // Функция для перехода на сайт через Whoer Proxy
         function navigateToUrl(url = '') {
             if (!url) {
                 url = urlInput.value.trim();
@@ -48,7 +48,7 @@
             // Обнуляем iframe перед загрузкой нового сайта (очистка контекста)
             browserFrame.src = 'about:blank';
             setTimeout(() => {
-                browserFrame.src = 'https://www.kproxy.com/servlet/redirect.srv/sruj/sruj/' + btoa(url);
+                browserFrame.src = 'https://whoer.net/webproxy?url=' + encodeURIComponent(url);
                 startTimer();
             }, 100);
         }
