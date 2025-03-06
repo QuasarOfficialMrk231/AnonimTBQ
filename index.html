@@ -17,7 +17,7 @@
 <body>
     <h1>Анонимный браузер</h1>
     <div id="url-bar" style="display:none;">
-        <input type="text" id="url-input" placeholder="Введите URL..." />
+        <input type="text" id="url-input" placeholder="Введите URL или название сайта..." />
         <button id="go-button">Перейти</button>
     </div>
     <iframe id="browser-frame" title="Анонимный браузер" style="display:none;"></iframe>
@@ -40,13 +40,23 @@
             warningMessage.textContent = 'При использовании сайта настоятельно рекомендуется использовать VPN/Proxy для полной анонимности.';
         }
 
-        // Переход на введённый сайт
-        goButton.addEventListener('click', () => {
-            let url = urlInput.value.trim();
+        // Проверка и добавление протокола, если его нет
+        function formatUrl(input) {
+            let url = input.trim();
+
+            // Если URL не начинается с "http://" или "https://", добавляем "https://"
             if (!url.startsWith('http://') && !url.startsWith('https://')) {
                 url = 'https://' + url;
             }
-            browserFrame.src = url;
+
+            return url;
+        }
+
+        // Переход на введённый сайт
+        goButton.addEventListener('click', () => {
+            let url = urlInput.value;
+            url = formatUrl(url); // Форматируем URL
+            browserFrame.src = url; // Загружаем в iframe
         });
 
         // Очистка cookies, кэша и истории
