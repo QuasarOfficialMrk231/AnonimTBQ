@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anonim TBQ Browser</title>
+    <title>Анонимный браузер</title>
     <style>
         body {
             margin: 0;
@@ -61,14 +61,37 @@
         #stats {
             margin-top: 20px;
         }
+
+        #search-results {
+            margin-top: 20px;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+            width: 80%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #search-results a {
+            display: block;
+            padding: 5px;
+            border-bottom: 1px solid #ddd;
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        #search-results a:hover {
+            background-color: #f1f1f1;
+        }
+
     </style>
 </head>
 
 <body>
-    <h1>Almost Anonim Browser</h1>
+    <h1>Анонимный браузер</h1>
 
     <div id="url-bar">
-        <input type="text" id="url-input" placeholder="Введите URL или название сайта..." />
+        <input type="text" id="url-input" placeholder="Введите запрос или URL..." />
         <button id="go-button">Перейти</button>
     </div>
 
@@ -81,6 +104,8 @@
         <p>📊 Скорость соединения с сайтом: <span id="ping">0</span> мс</p>
     </div>
 
+    <div id="search-results"></div>
+
     <button id="close-button">Прекратить использование</button>
 
     <script>
@@ -90,6 +115,7 @@
         const closeButton = document.getElementById('close-button');
         const timeSpentElement = document.getElementById('time-spent');
         const pingElement = document.getElementById('ping');
+        const searchResults = document.getElementById('search-results');
 
         let timeSpent = 0;
         let timer;
@@ -156,14 +182,32 @@
             pingElement.textContent = ping;
         }
 
-        goButton.addEventListener('click', () => {
-            const url = formatUrl(urlInput.value);
-            browserFrame.src = url;
+        function search(query) {
+            const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+            const wikipediaSearchUrl = `https://ru.wikipedia.org/wiki/Специальное:Поиск?search=${encodeURIComponent(query)}`;
 
-            clearInterval(timer);
-            timeSpent = 0;
-            startTimer();
-            measurePing(url);
+            searchResults.innerHTML = `
+                <a href="${googleSearchUrl}" target="_blank">Поиск в Google</a>
+                <a href="${wikipediaSearchUrl}" target="_blank">Поиск в Википедии</a>
+            `;
+        }
+
+        goButton.addEventListener('click', () => {
+            const inputValue = urlInput.value.trim();
+
+            if (inputValue) {
+                if (inputValue.includes(" ")) {
+                    search(inputValue);
+                } else {
+                    const url = formatUrl(inputValue);
+                    browserFrame.src = url;
+
+                    clearInterval(timer);
+                    timeSpent = 0;
+                    startTimer();
+                    measurePing(url);
+                }
+            }
         });
 
         function clearData() {
