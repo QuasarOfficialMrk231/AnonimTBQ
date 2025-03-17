@@ -1,27 +1,85 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Анонимный браузер</title>
+    <title>Anonim TBQ Browser</title>
     <style>
-        body { margin: 0; font-family: Arial, sans-serif; text-align: center; }
-        #url-bar { padding: 10px; background: #f1f1f1; display: flex; justify-content: center; border-bottom: 1px solid #ccc; }
-        #url-input { width: 80%; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
-        #go-button { padding: 5px 10px; margin-left: 5px; border: none; background-color: #007bff; color: white; border-radius: 4px; cursor: pointer; }
-        iframe { width: 100%; height: 80vh; border: none; }
-        #warning { color: red; margin-top: 20px; }
-        #close-button { padding: 10px 20px; margin-top: 20px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+
+        #url-bar {
+            padding: 10px;
+            background: #f1f1f1;
+            display: flex;
+            justify-content: center;
+            border-bottom: 1px solid #ccc;
+        }
+
+        #url-input {
+            width: 80%;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        #go-button {
+            padding: 5px 10px;
+            margin-left: 5px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        iframe {
+            width: 100%;
+            height: 80vh;
+            border: none;
+        }
+
+        #warning {
+            color: red;
+            margin-top: 20px;
+        }
+
+        #close-button {
+            padding: 10px 20px;
+            margin-top: 20px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #stats {
+            margin-top: 20px;
+        }
     </style>
 </head>
+
 <body>
     <h1>Анонимный браузер</h1>
-    <div id="url-bar" style="display:none;">
+
+    <div id="url-bar">
         <input type="text" id="url-input" placeholder="Введите URL или название сайта..." />
         <button id="go-button">Перейти</button>
     </div>
-    <iframe id="browser-frame" title="Анонимный браузер" style="display:none;"></iframe>
-    <p id="warning">При использовании сайта настоятельно рекомендуется использовать VPN/Proxy для полной анонимности.</p>
+
+    <iframe id="browser-frame" sandbox="allow-same-origin allow-scripts" title="Анонимный браузер"></iframe>
+
+    <p id="warning">Для полной анонимности рекомендуется использовать VPN/Tor и отключить WebRTC.</p>
+
+    <div id="stats">
+        <p>⏳ Время на сайте: <span id="time-spent">0</span> сек.</p>
+        <p>📊 Скорость соединения с сайтом: <span id="ping">0</span> мс</p>
+    </div>
 
     <button id="close-button">Прекратить использование</button>
 
@@ -29,52 +87,94 @@
         const urlInput = document.getElementById('url-input');
         const goButton = document.getElementById('go-button');
         const browserFrame = document.getElementById('browser-frame');
-        const urlBar = document.getElementById('url-bar');
-        const warningMessage = document.getElementById('warning');
         const closeButton = document.getElementById('close-button');
+        const timeSpentElement = document.getElementById('time-spent');
+        const pingElement = document.getElementById('ping');
 
-        // Разрешить доступ к сайту
-        function allowAccess() {
-            urlBar.style.display = 'flex';
-            browserFrame.style.display = 'block';
-            warningMessage.textContent = 'При использовании сайта настоятельно рекомендуется использовать VPN/Proxy для полной анонимности.';
+        let timeSpent = 0;
+        let timer;
+
+        function anonymizeNavigator() {
+            Object.defineProperties(navigator, {
+                userAgent: { get: () => "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+                platform: { get: () => "Win32" },
+                language: { get: () => "en-US" },
+                languages: { get: () => ["en-US"] },
+                hardwareConcurrency: { get: () => 4 },
+                deviceMemory: { get: () => 8 },
+                connection: { get: () => ({ effectiveType: "4g", downlink: 10, rtt: 50 }) },
+            });
+
+            const originalDate = Date;
+            window.Date = class extends originalDate {
+                getTimezoneOffset() {
+                    return 0;
+                }
+            };
         }
 
-        // Проверка и добавление протокола, если его нет
+        function disableWebRTC() {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia = () => Promise.reject(new Error("WebRTC отключён."));
+            }
+
+            if (window.RTCPeerConnection) {
+                window.RTCPeerConnection = function () {
+                    throw new Error("WebRTC отключён.");
+                };
+            }
+        }
+
+        function removeReferer() {
+            history.replaceState(null, '', '/');
+        }
+
         function formatUrl(input) {
             let url = input.trim();
-
-            // Если URL не начинается с "http://" или "https://", добавляем "https://"
             if (!url.startsWith('http://') && !url.startsWith('https://')) {
                 url = 'https://' + url;
             }
-
             return url;
         }
 
-        // Переход на введённый сайт
+        function startTimer() {
+            timer = setInterval(() => {
+                timeSpent++;
+                timeSpentElement.textContent = timeSpent;
+            }, 1000);
+        }
+
+        async function measurePing(url) {
+            const start = performance.now();
+            try {
+                await fetch(url, { mode: 'no-cors' });
+            } catch (error) {
+                console.error("Ошибка при измерении пинга:", error);
+            }
+            const end = performance.now();
+            const ping = Math.round(end - start);
+            pingElement.textContent = ping;
+        }
+
         goButton.addEventListener('click', () => {
-            let url = urlInput.value;
-            url = formatUrl(url); // Форматируем URL
-            browserFrame.src = url; // Загружаем в iframe
+            const url = formatUrl(urlInput.value);
+            browserFrame.src = url;
+
+            clearInterval(timer);
+            timeSpent = 0;
+            startTimer();
+            measurePing(url);
         });
 
-        // Очистка cookies, кэша и истории
         function clearData() {
-            if (window.localStorage) {
-                localStorage.clear();
-            }
-            if (window.sessionStorage) {
-                sessionStorage.clear();
-            }
+            if (window.localStorage) localStorage.clear();
+            if (window.sessionStorage) sessionStorage.clear();
 
-            // Очищаем cookies
             document.cookie.split(";").forEach((cookie) => {
                 const cookieName = cookie.split("=")[0].trim();
-                document.cookie = cookieName + "=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/";
+                document.cookie = `${cookieName}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`;
             });
 
-            // Очищаем кэш
             if ('caches' in window) {
                 caches.keys().then((cacheNames) => {
                     cacheNames.forEach((cacheName) => {
@@ -83,18 +183,20 @@
                 });
             }
 
-            // Закрытие текущей вкладки и открытие новой с Google
-            window.close(); // Закрывает текущую вкладку
-            window.open('https://www.google.com', '_blank'); // Открывает новую вкладку с Google
+            window.close();
+            window.open('https://www.google.com', '_blank');
         }
 
-        // Обработчик кнопки "Прекратить использование"
-        closeButton.addEventListener('click', () => {
-            clearData();
-        });
+        closeButton.addEventListener('click', clearData);
 
-        // При загрузке страницы показываем форму для ввода URL
-        window.onload = allowAccess;
+        window.onload = () => {
+            anonymizeNavigator();
+            disableWebRTC();
+            removeReferer();
+            startTimer();
+        };
     </script>
+
 </body>
+
 </html>
