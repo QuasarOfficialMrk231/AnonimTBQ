@@ -1,246 +1,296 @@
 <!DOCTYPE html>
-<html lang="ru">
-
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Анонимный браузер</title>
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            text-align: center;
+<meta charset="UTF-8" />
+<title>Kraken AnonSpoofer Fixed Device</title>
+<script>
+  // Функция для генерации случайного числа в диапазоне
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  // Фиксированный UserAgent и устройство KrakenPhone
+  const fixedUA = "Mozilla/5.0 (Linux; Android 12; KrakenPhone) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.7151.69 Mobile Safari/537.36";
+
+  (function() {
+    // UserAgent и устройство — фиксировано
+    Object.defineProperty(navigator, 'userAgent', { get: () => fixedUA });
+    Object.defineProperty(navigator, 'vendor', { get: () => "Google Inc." });
+    Object.defineProperty(navigator, 'product', { get: () => "Chrome" });
+    Object.defineProperty(navigator, 'appVersion', { get: () => "5.0 (Linux; Android 12; KrakenPhone)" });
+    Object.defineProperty(navigator, 'platform', { get: () => "Linux armv8l" });
+    Object.defineProperty(navigator, 'deviceMemory', { get: () => 12 });
+    Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
+
+    // Connection с небольшим рандомом в RTT
+    Object.defineProperty(navigator, 'connection', {
+      get: () => ({
+        type: "cellular",
+        effectiveType: "5g",
+        downlink: 100,
+        rtt: randomInt(10, 50),
+        saveData: false
+      })
+    });
+
+    // Постоянно офлайн
+    Object.defineProperty(navigator, 'onLine', { get: () => false });
+
+    // Do Not Track всегда включено
+    Object.defineProperty(navigator, 'doNotTrack', { get: () => "1" });
+
+    // Экран фиксирован
+    Object.defineProperty(screen, 'width', { get: () => 1280 });
+    Object.defineProperty(screen, 'height', { get: () => 720 });
+    Object.defineProperty(screen, 'colorDepth', { get: () => 24 });
+    Object.defineProperty(window, 'devicePixelRatio', { get: () => 2.5 });
+
+    // Языки и плагины фиксированные
+    Object.defineProperty(navigator, 'languages', { get: () => ["krk"] });
+    Object.defineProperty(navigator, 'language', { get: () => "krk-KR" });
+    Object.defineProperty(navigator, 'plugins', { get: () => [
+      { name: "Kraken PDF Viewer" },
+      { name: "Kraken Media Plugin" },
+      { name: "Kraken DRM" }
+    ]});
+
+    // Clipboard полностью заблокирован
+    Object.defineProperty(navigator, 'clipboard', {
+      get: () => ({
+        writeText: () => Promise.reject("Clipboard access denied"),
+        readText: () => Promise.reject("Clipboard access denied")
+      })
+    });
+  })();
+
+  // WebRTC блокировка
+  (function() {
+    const noop = () => {};
+    window.RTCPeerConnection = function() {
+      console.warn("WebRTC заблокирован");
+      return {
+        createOffer: noop,
+        createAnswer: noop,
+        setLocalDescription: noop,
+        setRemoteDescription: noop,
+        addIceCandidate: noop,
+        close: noop,
+        onicecandidate: null
+      };
+    };
+    window.webkitRTCPeerConnection = window.RTCPeerConnection;
+    window.mozRTCPeerConnection = window.RTCPeerConnection;
+  })();
+
+  // Permissions API — все запросы отклонены, кроме ручного запроса
+  const deniedPermissions = ["geolocation", "notifications", "camera", "microphone"];
+  navigator.permissions.query = function() {
+    return Promise.resolve({ state: "denied", onchange: null });
+  };
+  function requestPermission(type) {
+    const div = document.getElementById("perm-result");
+    if (!deniedPermissions.includes(type)) {
+      div.innerText = "Разрешение не распознано.";
+      return;
+    }
+    if (confirm(`⚠️ Разрешение на ${type} может раскрыть вашу личность. Разрешить?\n\nЯ осознаю нарушение анонимности.`)) {
+      div.innerText = `Разрешение на ${type} включено (эмуляция).`;
+    } else {
+      div.innerText = `Доступ к ${type} запрещён.`;
+    }
+  }
+
+  // Canvas spoof с шумом
+  (function() {
+    const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
+    HTMLCanvasElement.prototype.toDataURL = function() {
+      const ctx = this.getContext('2d');
+      if(ctx) {
+        const width = this.width;
+        const height = this.height;
+        const imageData = ctx.getImageData(0, 0, width, height);
+        for(let i=0; i < imageData.data.length; i+=4) {
+          imageData.data[i] = Math.floor(Math.random()*10);
+          imageData.data[i+1] = Math.floor(Math.random()*10);
+          imageData.data[i+2] = Math.floor(Math.random()*10);
+          imageData.data[i+3] = 255;
         }
+        ctx.putImageData(imageData, 0, 0);
+      }
+      return origToDataURL.apply(this, arguments);
+    };
+    CanvasRenderingContext2D.prototype.getImageData = function() {
+      const data = new ImageData(1, 1);
+      data.data[0] = randomInt(0,10);
+      data.data[1] = randomInt(0,10);
+      data.data[2] = randomInt(0,10);
+      data.data[3] = 255;
+      return data;
+    };
+  })();
 
-        #url-bar {
-            padding: 10px;
-            background: #f1f1f1;
-            display: flex;
-            justify-content: center;
-            border-bottom: 1px solid #ccc;
-        }
-
-        #url-input {
-            width: 80%;
-            padding: 5px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-
-        #go-button {
-            padding: 5px 10px;
-            margin-left: 5px;
-            border: none;
-            background-color: #007bff;
-            color: white;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        iframe {
-            width: 100%;
-            height: 80vh;
-            border: none;
-        }
-
-        #warning {
-            color: red;
-            margin-top: 20px;
-        }
-
-        #close-button {
-            padding: 10px 20px;
-            margin-top: 20px;
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        #stats {
-            margin-top: 20px;
-        }
-
-        #search-results {
-            margin-top: 20px;
-            text-align: left;
-            max-height: 200px;
-            overflow-y: auto;
-            width: 80%;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        #search-results a {
-            display: block;
-            padding: 5px;
-            border-bottom: 1px solid #ddd;
-            color: #007bff;
-            text-decoration: none;
-        }
-
-        #search-results a:hover {
-            background-color: #f1f1f1;
-        }
-
-    </style>
-</head>
-
-<body>
-    <h1>Анонимный браузер</h1>
-
-    <div id="url-bar">
-        <input type="text" id="url-input" placeholder="Введите запрос или URL..." />
-        <button id="go-button">Перейти</button>
-    </div>
-
-    <iframe id="browser-frame" sandbox="allow-same-origin allow-scripts" title="Анонимный браузер"></iframe>
-
-    <p id="warning">Для полной анонимности рекомендуется использовать VPN/Tor и отключить WebRTC.</p>
-
-    <div id="stats">
-        <p>⏳ Время на сайте: <span id="time-spent">0</span> сек.</p>
-        <p>📊 Скорость соединения с сайтом: <span id="ping">0</span> мс</p>
-    </div>
-
-    <div id="search-results"></div>
-
-    <button id="close-button">Прекратить использование</button>
-
-    <script>
-        const urlInput = document.getElementById('url-input');
-        const goButton = document.getElementById('go-button');
-        const browserFrame = document.getElementById('browser-frame');
-        const closeButton = document.getElementById('close-button');
-        const timeSpentElement = document.getElementById('time-spent');
-        const pingElement = document.getElementById('ping');
-        const searchResults = document.getElementById('search-results');
-
-        let timeSpent = 0;
-        let timer;
-
-        function anonymizeNavigator() {
-            Object.defineProperties(navigator, {
-                userAgent: { get: () => "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
-                platform: { get: () => "Win32" },
-                language: { get: () => "en-US" },
-                languages: { get: () => ["en-US"] },
-                hardwareConcurrency: { get: () => 4 },
-                deviceMemory: { get: () => 8 },
-                connection: { get: () => ({ effectiveType: "4g", downlink: 10, rtt: 50 }) },
-            });
-
-            const originalDate = Date;
-            window.Date = class extends originalDate {
-                getTimezoneOffset() {
-                    return 0;
-                }
-            };
-        }
-
-        function disableWebRTC() {
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia = () => Promise.reject(new Error("WebRTC отключён."));
-            }
-
-            if (window.RTCPeerConnection) {
-                window.RTCPeerConnection = function () {
-                    throw new Error("WebRTC отключён.");
-                };
-            }
-        }
-
-        function removeReferer() {
-            history.replaceState(null, '', '/');
-        }
-
-        function formatUrl(input) {
-            let url = input.trim();
-            if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                url = 'https://' + url;
-            }
-            return url;
-        }
-
-        function startTimer() {
-            timer = setInterval(() => {
-                timeSpent++;
-                timeSpentElement.textContent = timeSpent;
-            }, 1000);
-        }
-
-        async function measurePing(url) {
-            const start = performance.now();
-            try {
-                await fetch(url, { mode: 'no-cors' });
-            } catch (error) {
-                console.error("Ошибка при измерении пинга:", error);
-            }
-            const end = performance.now();
-            const ping = Math.round(end - start);
-            pingElement.textContent = ping;
-        }
-
-        function search(query) {
-            const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-            const wikipediaSearchUrl = `https://ru.wikipedia.org/wiki/Специальное:Поиск?search=${encodeURIComponent(query)}`;
-
-            searchResults.innerHTML = `
-                <a href="${googleSearchUrl}" target="_blank">Поиск в Google</a>
-                <a href="${wikipediaSearchUrl}" target="_blank">Поиск в Википедии</a>
-            `;
-        }
-
-        goButton.addEventListener('click', () => {
-            const inputValue = urlInput.value.trim();
-
-            if (inputValue) {
-                if (inputValue.includes(" ")) {
-                    search(inputValue);
-                } else {
-                    const url = formatUrl(inputValue);
-                    browserFrame.src = url;
-
-                    clearInterval(timer);
-                    timeSpent = 0;
-                    startTimer();
-                    measurePing(url);
-                }
-            }
-        });
-
-        function clearData() {
-            if (window.localStorage) localStorage.clear();
-            if (window.sessionStorage) sessionStorage.clear();
-
-            document.cookie.split(";").forEach((cookie) => {
-                const cookieName = cookie.split("=")[0].trim();
-                document.cookie = `${cookieName}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`;
-            });
-
-            if ('caches' in window) {
-                caches.keys().then((cacheNames) => {
-                    cacheNames.forEach((cacheName) => {
-                        caches.delete(cacheName);
-                    });
-                });
-            }
-
-            window.close();
-            window.open('https://www.google.com', '_blank');
-        }
-
-        closeButton.addEventListener('click', clearData);
-
-        window.onload = () => {
-            anonymizeNavigator();
-            disableWebRTC();
-            removeReferer();
-            startTimer();
+  // AudioContext spoof с шумом
+  (function() {
+    if (window.AudioContext) {
+      const OrigAudioContext = window.AudioContext;
+      window.AudioContext = function() {
+        const ctx = new OrigAudioContext();
+        const origGetChannelData = ctx.getChannelData;
+        ctx.getChannelData = function() {
+          const data = origGetChannelData.apply(this, arguments);
+          for(let i=0; i<data.length; i++) {
+            data[i] += (Math.random() - 0.5) * 0.0001;
+          }
+          return data;
         };
-    </script>
+        return ctx;
+      };
+      window.AudioContext.prototype = OrigAudioContext.prototype;
+    }
+  })();
+
+  // Timezone spoof
+  (function() {
+    try {
+      const OrigDateTimeFormat = Intl.DateTimeFormat;
+      Intl.DateTimeFormat = function(locale, options) {
+        if (!options) options = {};
+        options.timeZone = 'Asia/Seoul';
+        return new OrigDateTimeFormat(locale, options);
+      };
+    } catch(e){}
+  })();
+
+  // Battery API фиксированный — всегда 100%
+  if ('getBattery' in navigator) {
+    navigator.getBattery = function() {
+      return Promise.resolve({
+        charging: true,
+        chargingTime: 0,
+        dischargingTime: Infinity,
+        level: 1,
+        onchargingchange: null,
+        onlevelchange: null,
+      });
+    };
+  }
+
+  // MediaDevices spoof — пустой список и отказ
+  if (navigator.mediaDevices) {
+    navigator.mediaDevices.enumerateDevices = () => Promise.resolve([]);
+    navigator.mediaDevices.getUserMedia = () => Promise.reject(new Error("Permission denied"));
+  }
+
+  // Fonts API блокировка
+  if (window.FontFace) {
+    const origLoad = FontFace.prototype.load;
+    FontFace.prototype.load = function() {
+      return Promise.reject("Font loading disabled");
+    };
+  }
+  if (document.fonts) {
+    Object.defineProperty(document.fonts, 'ready', {
+      get: () => Promise.reject("Fonts API disabled")
+    });
+  }
+
+  // WebGL блокировка
+  (function() {
+    const origGetContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function(type, ...args) {
+      if(type === "webgl" || type === "experimental-webgl" || type === "webgl2") {
+        console.warn("WebGL заблокирован");
+        return null;
+      }
+      return origGetContext.call(this, type, ...args);
+    };
+  })();
+
+  // Sensor API блокировка
+  window.DeviceMotionEvent = undefined;
+  window.DeviceOrientationEvent = undefined;
+
+  // Touch и Pointer Events блокировка
+  window.TouchEvent = undefined;
+  window.PointerEvent = undefined;
+
+  // Cookies блокировка (игнор установки)
+  (function() {
+    Object.defineProperty(document, 'cookie', {
+      configurable: true,
+      enumerable: true,
+      get() { return ""; },
+      set(value) {
+        console.warn('Попытка установки cookie заблокирована:', value);
+      }
+    });
+  })();
+
+  // Очистка данных (localStorage, sessionStorage, indexedDB, cache, cookies, история) каждую минуту
+  async function clearData() {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+      if(window.indexedDB && indexedDB.databases) {
+        const dbs = await indexedDB.databases();
+        for (const db of dbs) {
+          indexedDB.deleteDatabase(db.name);
+        }
+      }
+      if(window.caches && caches.keys) {
+        const keys = await caches.keys();
+        for (const key of keys) {
+          await caches.delete(key);
+        }
+      }
+      document.cookie.split(";").forEach(cookie => {
+        const eqPos = cookie.indexOf("=");
+        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+      });
+      history.pushState(null, '', '/');
+    } catch(e) {
+      console.warn("Ошибка очистки данных:", e);
+    }
+  }
+  clearData();
+  setInterval(clearData, 60 * 1000);
+
+  // ====== Функция для ввода URL с добавлением https:// если нет протокола ======
+  function openUrlFromInput() {
+    let url = document.getElementById('urlInput').value.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) {
+      url = 'https://' + url;
+    }
+    window.open(url, '_blank');
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('goBtn').addEventListener('click', openUrlFromInput);
+    document.getElementById('urlInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') openUrlFromInput();
+    });
+  });
+</script>
+</head>
+<body>
+  <h1>Kraken AnonSpoofer Fixed Device</h1>
+  <p>Устройство KrakenPhone и заряд батареи 100% — фиксированы.</p>
+  <p>Остальные параметры динамические с очисткой данных каждую минуту.</p>
+
+  <h3>Запрос разрешений (только вручную):</h3>
+  <button onclick="requestPermission('geolocation')">Запрос геолокации</button>
+  <button onclick="requestPermission('camera')">Запрос камеры</button>
+  <button onclick="requestPermission('microphone')">Запрос микрофона</button>
+  <button onclick="requestPermission('notifications')">Запрос уведомлений</button>
+  <p id="perm-result" style="color: green;"></p>
+
+  <hr />
+
+  <div>
+    <input type="text" id="urlInput" placeholder="Введите адрес сайта, например google.com" style="width:300px;" />
+    <button id="goBtn">Перейти</button>
+  </div>
 
 </body>
-
 </html>
